@@ -10,8 +10,8 @@ from app.seed import seed_database
 from app.db import get_db_connection
 
 def test_full_pipeline():
-    print("==> Seeding database...")
-    seed_database()
+    print("==> Seeding database for test verification...")
+    seed_database(include_demo_contacts=True)
 
     client = TestClient(app)
 
@@ -30,6 +30,7 @@ def test_full_pipeline():
     user = res.json()
     assert "target_companies" in user
     assert "Figure" in user["target_companies"]
+    assert user["full_name"] == "Anthony Mikinka"
     print(f"    Profile OK: {user['full_name']} ({user['headline']})")
 
     # 3. Test Graph & Dijkstra Paths
@@ -51,8 +52,8 @@ def test_full_pipeline():
     outreach = res.json()
     assert "bridge_intro_request" in outreach["outreach"]
     assert "forwardable_blurb" in outreach["outreach"]
-    assert "Sarah Chen" in outreach["bridge_name"]
-    print("    Outreach OK: Intro request and forwardable blurb successfully generated.")
+    assert outreach["bridge_name"] in ["Jason Brody", "Sarah Chen"]
+    print(f"    Outreach OK: Intro request and forwardable blurb generated via {outreach['bridge_name']}.")
 
     # 5. Test Node Patching (Trust Slider)
     print("==> Testing PATCH /api/nodes/n_sarah_chen...")

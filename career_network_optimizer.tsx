@@ -11,10 +11,10 @@ import {
 } from 'lucide-react';
 
 // ============================================================================
-// 1. PERSISTENT STATE & SEED DATABASE (localStorage 'cno_db_v3')
+// 1. PERSISTENT STATE & SEED DATABASE (localStorage 'cno_db_v5')
 // ============================================================================
 
-const STORAGE_KEY = 'cno_db_v3';
+const STORAGE_KEY = 'cno_db_v5';
 
 const CLUSTERS = [
   'Robotics & Embodied AI',
@@ -97,594 +97,9 @@ const DEFAULT_PROFILE = {
   ]
 };
 
-const DEFAULT_NODES = [
-  // ================= 1ST DEGREE CONNECTIONS (6 DIRECT BRIDGES) =================
-  {
-    id: 'n1',
-    name: 'Marcus Vance',
-    role: 'Sr. Robotics Telemetry Engineer',
-    company: 'Tesla',
-    degree: 1,
-    trustScore: 0.94,
-    authorityLevel: 'IC',
-    cluster: 'Robotics & Embodied AI',
-    strategicValue: 92,
-    location: 'Palo Alto, CA',
-    skills: [
-      'Humanoid Robotics Telemetry & Data Ops',
-      'Distributed Data Platform Architecture',
-      'C++ & Tauri GUI Systems'
-    ],
-    pastState3YrsAgo: {
-      role: 'Robotics Data Operations Specialist @ Zoox',
-      similarityScore: 88,
-      vectorCluster: 'Principal Embodied AI & Humanoid Data Architect'
-    },
-    githubOverlap: 'Internal Optimus telemetry & sensor calibration tooling',
-    connectedOn: '2025-11-04',
-    messageCount: 42,
-    context: 'Tesla Optimus Data Collection Team',
-    notes: 'Direct partner on high-frequency humanoid episode capture and calibration.'
-  },
-  {
-    id: 'n2',
-    name: 'Devon Brooks',
-    role: 'Staff Data Infrastructure Architect',
-    company: 'LinkedIn',
-    degree: 1,
-    trustScore: 0.91,
-    authorityLevel: 'Staff/Principal',
-    cluster: 'Data Platform & Infra',
-    strategicValue: 89,
-    location: 'Sunnyvale, CA',
-    skills: [
-      'Distributed Data Platform Architecture',
-      'Automated Test Execution / Loom',
-      'Humanoid Robotics Telemetry & Data Ops'
-    ],
-    pastState3YrsAgo: {
-      role: 'Sr. Data Pipeline Engineer @ Cruise',
-      similarityScore: 91,
-      vectorCluster: 'Principal Embodied AI & Humanoid Data Architect'
-    },
-    githubOverlap: 'DET Bay Area Meetup co-organizer & Loom benchmark reviewer',
-    connectedOn: '2025-09-18',
-    messageCount: 31,
-    context: 'DET Bay Area Meetup @ LinkedIn HQ',
-    notes: 'Met at the Data Engineering & Telemetry meetup at LinkedIn HQ; deep overlap on Lingo architecture.'
-  },
-  {
-    id: 'n3',
-    name: 'Elena Rostova',
-    role: 'Staff ML Compiler Engineer',
-    company: 'Apple',
-    degree: 1,
-    trustScore: 0.87,
-    authorityLevel: 'Staff/Principal',
-    cluster: 'Edge ML & Runtimes',
-    strategicValue: 90,
-    location: 'Cupertino, CA',
-    skills: [
-      'MLX Inference Acceleration',
-      'ONNX Runtime & Graph Chunking',
-      'C++ & Tauri GUI Systems'
-    ],
-    pastState3YrsAgo: {
-      role: 'C++ Inference Systems Engineer @ Qualcomm',
-      similarityScore: 90,
-      vectorCluster: 'Staff Edge ML & Split-Graph Runtime Systems Lead'
-    },
-    githubOverlap: 'antmikinka/lemon-mlx-engine contributor & Metal kernel reviewer',
-    connectedOn: '2025-07-12',
-    messageCount: 19,
-    context: 'GitHub antmikinka/lemon-mlx-engine contributor',
-    notes: 'Contributed Apple Silicon unified memory benchmarks to lemon-mlx-engine.'
-  },
-  {
-    id: 'n4',
-    name: 'Kenji Takahashi',
-    role: 'Principal Runtime Architect',
-    company: 'NVIDIA',
-    degree: 1,
-    trustScore: 0.82,
-    authorityLevel: 'Staff/Principal',
-    cluster: 'Edge ML & Runtimes',
-    strategicValue: 88,
-    location: 'Santa Clara, CA',
-    skills: [
-      'ONNX Runtime & Graph Chunking',
-      'C++ & Tauri GUI Systems',
-      'Humanoid Robotics Telemetry & Data Ops'
-    ],
-    pastState3YrsAgo: {
-      role: 'Sr. Deep Learning Runtime Engineer @ NVIDIA',
-      similarityScore: 87,
-      vectorCluster: 'Staff Edge ML & Split-Graph Runtime Systems Lead'
-    },
-    githubOverlap: 'antmikinka/onnx-model-chunking PR reviewer & onnxruntime committer',
-    connectedOn: '2025-05-20',
-    messageCount: 14,
-    context: 'GitHub antmikinka/onnx-model-chunking contributor',
-    notes: 'Reviewed split-graph memory arena allocation strategies for edge tensor execution.'
-  },
-  {
-    id: 'n5',
-    name: 'Priya Nair',
-    role: 'Engineering Manager, Embodied Fleet Ops',
-    company: 'Figure',
-    degree: 1,
-    trustScore: 0.84,
-    authorityLevel: 'Director/VP/Founder',
-    cluster: 'Robotics & Embodied AI',
-    strategicValue: 91,
-    location: 'San Jose, CA',
-    skills: [
-      'Humanoid Robotics Telemetry & Data Ops',
-      'Automated Test Execution / Loom',
-      'Distributed Data Platform Architecture'
-    ],
-    pastState3YrsAgo: {
-      role: 'Robotics Data Collection Lead @ Everyday Robots',
-      similarityScore: 95,
-      vectorCluster: 'Principal Embodied AI & Humanoid Data Architect'
-    },
-    githubOverlap: 'antmikinka/loom teleop QA harness adopter',
-    connectedOn: '2025-08-29',
-    messageCount: 22,
-    context: 'San Jose Humanoid Hardware & Data Mixer',
-    notes: 'Discussed automated teleop QA validation and fleet episode indexing in San Jose.'
-  },
-  {
-    id: 'n6',
-    name: 'Lucas Meyer',
-    role: 'Sr. Autopilot & Lingo Data Infrastructure Lead',
-    company: 'Tesla',
-    degree: 1,
-    trustScore: 0.89,
-    authorityLevel: 'Staff/Principal',
-    cluster: 'Data Platform & Infra',
-    strategicValue: 87,
-    location: 'Palo Alto, CA',
-    skills: [
-      'Distributed Data Platform Architecture',
-      'Humanoid Robotics Telemetry & Data Ops',
-      'Automated Test Execution / Loom'
-    ],
-    pastState3YrsAgo: {
-      role: 'Data Platform Engineer @ Tesla Autopilot',
-      similarityScore: 93,
-      vectorCluster: 'Principal Embodied AI & Humanoid Data Architect'
-    },
-    githubOverlap: 'Internal Lingo dataset indexing & evaluation harness co-author',
-    connectedOn: '2025-10-15',
-    messageCount: 27,
-    context: 'Tesla Lingo Data Platform Architecture Sync',
-    notes: 'Collaborated on petabyte-scale multi-modal dataset indexing and evaluation pipelines.'
-  },
-
-  // ================= 2ND DEGREE HIGH-VALUE TARGETS (7 NODES) =================
-  {
-    id: 'n7',
-    name: 'Dr. Aris Thorne',
-    role: 'Director of Humanoid Data & Foundation Models',
-    company: 'Tesla',
-    degree: 2,
-    trustScore: 0.86,
-    authorityLevel: 'Director/VP/Founder',
-    cluster: 'Robotics & Embodied AI',
-    strategicValue: 99,
-    location: 'Palo Alto, CA',
-    skills: [
-      'Humanoid Robotics Telemetry & Data Ops',
-      'Distributed Data Platform Architecture',
-      'ONNX Runtime & Graph Chunking'
-    ],
-    pastState3YrsAgo: {
-      role: 'Staff Autonomy Data & Fleet Learning Architect @ Tesla',
-      similarityScore: 96,
-      vectorCluster: 'Principal Embodied AI & Humanoid Data Architect'
-    },
-    githubOverlap: 'Cited split-graph execution patterns in internal Optimus runtime RFC',
-    connectedOn: '2025-11-01',
-    messageCount: 0,
-    context: 'Executive Lead — Optimus Data & Lingo Platform',
-    notes: 'Key decision-maker overseeing next-gen Optimus data architecture & fleet learning.'
-  },
-  {
-    id: 'n8',
-    name: 'Vikram Mehta',
-    role: 'Distinguished Engineer, CoreML & MLX Silicon',
-    company: 'Apple',
-    degree: 2,
-    trustScore: 0.81,
-    authorityLevel: 'Staff/Principal',
-    cluster: 'Edge ML & Runtimes',
-    strategicValue: 96,
-    location: 'Cupertino, CA',
-    skills: [
-      'MLX Inference Acceleration',
-      'ONNX Runtime & Graph Chunking',
-      'C++ & Tauri GUI Systems'
-    ],
-    pastState3YrsAgo: {
-      role: 'Sr. C++ ML Runtime Architect @ Apple',
-      similarityScore: 94,
-      vectorCluster: 'Staff Edge ML & Split-Graph Runtime Systems Lead'
-    },
-    githubOverlap: 'Core maintainer on ml-explore/mlx; bookmarked antmikinka/lemon-mlx-engine',
-    connectedOn: '2025-06-15',
-    messageCount: 0,
-    context: 'Apple Silicon Local Inference Architecture Lead',
-    notes: 'Leading zero-copy unified memory graph partitioning across Neural Engine and Metal GPU.'
-  },
-  {
-    id: 'n9',
-    name: 'Liam O’Connor',
-    role: 'VP of Embodied AI & Robotics Systems',
-    company: 'Figure',
-    degree: 2,
-    trustScore: 0.83,
-    authorityLevel: 'Director/VP/Founder',
-    cluster: 'Robotics & Embodied AI',
-    strategicValue: 98,
-    location: 'San Jose, CA',
-    skills: [
-      'Humanoid Robotics Telemetry & Data Ops',
-      'C++ & Tauri GUI Systems',
-      'ONNX Runtime & Graph Chunking'
-    ],
-    pastState3YrsAgo: {
-      role: 'Principal Robotics Data & Control Systems Lead @ Boston Dynamics',
-      similarityScore: 95,
-      vectorCluster: 'Principal Embodied AI & Humanoid Data Architect'
-    },
-    githubOverlap: 'Follows antmikinka/onnx-model-chunking for onboard humanoid inference',
-    connectedOn: '2025-08-01',
-    messageCount: 0,
-    context: 'Figure Core Humanoid Platform Leadership',
-    notes: 'Hiring Staff/Principal architects for onboard low-latency inference and teleop data engines.'
-  },
-  {
-    id: 'n10',
-    name: 'Sophia Chen',
-    role: 'Principal ML Systems & Inference Architect',
-    company: 'OpenAI',
-    degree: 2,
-    trustScore: 0.80,
-    authorityLevel: 'Staff/Principal',
-    cluster: 'Edge ML & Runtimes',
-    strategicValue: 96,
-    location: 'San Francisco, CA',
-    skills: [
-      'ONNX Runtime & Graph Chunking',
-      'MLX Inference Acceleration',
-      'C++ & Tauri GUI Systems'
-    ],
-    pastState3YrsAgo: {
-      role: 'ML Compiler & ONNX Runtime Engineer @ Microsoft',
-      similarityScore: 93,
-      vectorCluster: 'Staff Edge ML & Split-Graph Runtime Systems Lead'
-    },
-    githubOverlap: 'onnxruntime graph partitioning author & lemon-mlx-engine stargazer',
-    connectedOn: '2025-04-19',
-    messageCount: 0,
-    context: 'OpenAI Inference & Hardware Co-Design',
-    notes: 'Scaling low-latency multi-modal model chunking and distributed runtime execution.'
-  },
-  {
-    id: 'n11',
-    name: 'Zara Al-Mansoor',
-    role: 'Head of Pre-Training & Multimodal Data Ops',
-    company: 'Anthropic',
-    degree: 2,
-    trustScore: 0.82,
-    authorityLevel: 'Director/VP/Founder',
-    cluster: 'Data Platform & Infra',
-    strategicValue: 95,
-    location: 'San Francisco, CA',
-    skills: [
-      'Distributed Data Platform Architecture',
-      'Automated Test Execution / Loom',
-      'Humanoid Robotics Telemetry & Data Ops'
-    ],
-    pastState3YrsAgo: {
-      role: 'Staff Data Operations & Evaluation Lead @ Scale AI',
-      similarityScore: 92,
-      vectorCluster: 'Principal Embodied AI & Humanoid Data Architect'
-    },
-    githubOverlap: 'Referenced Loom deterministic test execution patterns in eval blog',
-    connectedOn: '2025-09-01',
-    messageCount: 0,
-    context: 'Anthropic Data Platform & Evaluation Org',
-    notes: 'Architecting high-reliability human data collection and automated evaluation pipelines.'
-  },
-  {
-    id: 'n12',
-    name: 'Hannah Lindqvist',
-    role: 'Director of Project GR00T & Isaac Data Lab',
-    company: 'NVIDIA',
-    degree: 2,
-    trustScore: 0.84,
-    authorityLevel: 'Director/VP/Founder',
-    cluster: 'Robotics & Embodied AI',
-    strategicValue: 96,
-    location: 'Santa Clara, CA',
-    skills: [
-      'Humanoid Robotics Telemetry & Data Ops',
-      'ONNX Runtime & Graph Chunking',
-      'Distributed Data Platform Architecture'
-    ],
-    pastState3YrsAgo: {
-      role: 'Sr. Simulation & Robotics Data Architect @ NVIDIA',
-      similarityScore: 94,
-      vectorCluster: 'Principal Embodied AI & Humanoid Data Architect'
-    },
-    githubOverlap: 'TensorRT / ONNX split-graph execution benchmark contributor',
-    connectedOn: '2025-05-10',
-    messageCount: 0,
-    context: 'NVIDIA Humanoid Foundation Model Runtime',
-    notes: 'Spearheading simulation-to-real data pipelines and TensorRT/ONNX robot deployment.'
-  },
-  {
-    id: 'n16',
-    name: 'Rafael Dominguez',
-    role: 'Co-Founder & CTO, Embodied Eval Systems',
-    company: 'Kinetix AI (YC / Series A)',
-    degree: 2,
-    trustScore: 0.78,
-    authorityLevel: 'Director/VP/Founder',
-    cluster: 'Frontier Execs & Venture',
-    strategicValue: 94,
-    location: 'San Francisco, CA',
-    skills: [
-      'Humanoid Robotics Telemetry & Data Ops',
-      'C++ & Tauri GUI Systems',
-      'Automated Test Execution / Loom'
-    ],
-    pastState3YrsAgo: {
-      role: 'Optimus / Autonomy Data Platform Lead @ Tesla',
-      similarityScore: 97,
-      vectorCluster: 'Robotics Data & Eval Platform Founder / VP'
-    },
-    githubOverlap: 'Forked antmikinka/lemonade & Tauri C++ desktop telemetry widgets',
-    connectedOn: '2025-10-02',
-    messageCount: 0,
-    context: 'Ex-Tesla Data Architect turned Series A Robotics Tooling Founder',
-    notes: 'Left Tesla data platform 2 years ago to raise $18M for humanoid teleop QA & evaluation.'
-  },
-
-  // ================= 3RD DEGREE STRATEGIC EXECS / VCS (3 NODES) =================
-  {
-    id: 'n13',
-    name: 'Dr. Mei-Ling Zhou',
-    role: 'SVP of Foundation Robotics & Embodied AI',
-    company: 'OpenAI',
-    degree: 3,
-    trustScore: 0.76,
-    authorityLevel: 'Director/VP/Founder',
-    cluster: 'Frontier Execs & Venture',
-    strategicValue: 99,
-    location: 'San Francisco, CA',
-    skills: [
-      'Humanoid Robotics Telemetry & Data Ops',
-      'ONNX Runtime & Graph Chunking',
-      'Distributed Data Platform Architecture'
-    ],
-    pastState3YrsAgo: {
-      role: 'Director of Robotics Data & Learning @ Google DeepMind',
-      similarityScore: 89,
-      vectorCluster: 'Principal Embodied AI & Humanoid Data Architect'
-    },
-    githubOverlap: 'Keynote speaker on split-graph edge inference for physical agents',
-    connectedOn: '2025-03-01',
-    messageCount: 0,
-    context: 'Physical Agents & Embodied Foundation Models',
-    notes: 'Leading cross-morphology robotics data alliances and real-time edge inference.'
-  },
-  {
-    id: 'n14',
-    name: 'Julian Vance-Sterling',
-    role: 'Managing Partner, Frontier Robotics & AI Systems',
-    company: 'Founders Frontier VC',
-    degree: 3,
-    trustScore: 0.75,
-    authorityLevel: 'Director/VP/Founder',
-    cluster: 'Frontier Execs & Venture',
-    strategicValue: 95,
-    location: 'Menlo Park, CA',
-    skills: [
-      'Humanoid Robotics Telemetry & Data Ops',
-      'Distributed Data Platform Architecture',
-      'MLX Inference Acceleration'
-    ],
-    pastState3YrsAgo: {
-      role: 'VP of Autonomy Infrastructure & Seed Investor',
-      similarityScore: 91,
-      vectorCluster: 'Robotics Data & Eval Platform Founder / VP'
-    },
-    githubOverlap: 'Tracks high-velocity GitHub maintainers in ONNX/MLX & Robotics Data',
-    connectedOn: '2025-02-14',
-    messageCount: 0,
-    context: 'Lead Series A Investor in Embodied AI & ML Tooling',
-    notes: 'Backs technical founders building robotics data infrastructure and edge ML runtimes.'
-  },
-  {
-    id: 'n15',
-    name: 'Caleb Vance',
-    role: 'VP of Platform Systems & Rust/C++ Tooling',
-    company: 'Anthropic',
-    degree: 3,
-    trustScore: 0.77,
-    authorityLevel: 'Director/VP/Founder',
-    cluster: 'Data Platform & Infra',
-    strategicValue: 93,
-    location: 'San Francisco, CA',
-    skills: [
-      'C++ & Tauri GUI Systems',
-      'Automated Test Execution / Loom',
-      'ONNX Runtime & Graph Chunking'
-    ],
-    pastState3YrsAgo: {
-      role: 'Principal C++/Rust Developer Tooling Architect',
-      similarityScore: 90,
-      vectorCluster: 'Staff Edge ML & Split-Graph Runtime Systems Lead'
-    },
-    githubOverlap: 'Tauri desktop instrumentation & high-assurance evaluation runtimes',
-    connectedOn: '2025-04-02',
-    messageCount: 0,
-    context: 'High-Assurance AI Systems & Developer Infrastructure',
-    notes: 'Oversees internal developer instrumentation, desktop evaluation harnesses, and runtime safety.'
-  }
-];
-
-const DEFAULT_EDGES = [
-  // Root User (user-root) to 1st Degree Nodes
-  { id: 'e1', source: 'user-root', target: 'n1', weight: 0.94, context: 'Tesla Optimus Data Collection Team (42 msgs)' },
-  { id: 'e2', source: 'user-root', target: 'n2', weight: 0.91, context: 'DET Bay Area Meetup @ LinkedIn HQ (31 msgs)' },
-  { id: 'e3', source: 'user-root', target: 'n3', weight: 0.87, context: 'GitHub lemon-mlx-engine collaborator (19 msgs)' },
-  { id: 'e4', source: 'user-root', target: 'n4', weight: 0.82, context: 'GitHub onnx-model-chunking contributor (14 msgs)' },
-  { id: 'e5', source: 'user-root', target: 'n5', weight: 0.84, context: 'San Jose Humanoid Hardware Mixer (22 msgs)' },
-  { id: 'e6', source: 'user-root', target: 'n6', weight: 0.89, context: 'Tesla Lingo Data Platform Architecture Sync (27 msgs)' },
-
-  // 1st Degree to 2nd Degree Bridges
-  { id: 'e7', source: 'n1', target: 'n7', weight: 0.93, context: 'Reports directly to Dr. Thorne on Optimus Data Ops' },
-  { id: 'e8', source: 'n6', target: 'n7', weight: 0.90, context: 'Weekly Lingo & Optimus cross-org architecture review' },
-  { id: 'e9', source: 'n3', target: 'n8', weight: 0.92, context: 'CoreML / MLX Silicon architecture teammates in Cupertino' },
-  { id: 'e10', source: 'n4', target: 'n8', weight: 0.75, context: 'Joint ONNX / Metal shader optimization working group' },
-  { id: 'e11', source: 'n5', target: 'n9', weight: 0.91, context: 'Direct Embodied Fleet Ops leadership chain at Figure' },
-  { id: 'e12', source: 'n1', target: 'n9', weight: 0.76, context: 'Former robotics lab peers before Tesla/Figure' },
-  { id: 'e13', source: 'n3', target: 'n10', weight: 0.86, context: 'Co-authored ML compiler & graph partitioning paper' },
-  { id: 'e14', source: 'n4', target: 'n10', weight: 0.83, context: 'GTC San Jose Inference Runtime benchmark partners' },
-  { id: 'e15', source: 'n2', target: 'n11', weight: 0.90, context: 'Co-architected streaming data pipelines for 3 years' },
-  { id: 'e16', source: 'n6', target: 'n11', weight: 0.78, context: 'DET Bay Area Meetup speakers panel' },
-  { id: 'e17', source: 'n4', target: 'n12', weight: 0.91, context: 'Internal NVIDIA TensorRT + Project GR00T bridge' },
-  { id: 'e18', source: 'n5', target: 'n12', weight: 0.77, context: 'Humanoid simulation benchmark partners' },
-  { id: 'e23', source: 'n6', target: 'n16', weight: 0.88, context: 'Co-built Tesla Lingo v1 ingestion before Rafael founded Kinetix' },
-  { id: 'e24', source: 'n5', target: 'n16', weight: 0.79, context: 'Pilot customer for Kinetix teleop QA harness' },
-
-  // 2nd Degree to 3rd Degree Bridges
-  { id: 'e19', source: 'n10', target: 'n13', weight: 0.92, context: 'OpenAI Inference & Embodied Robotics leadership pair' },
-  { id: 'e20', source: 'n7', target: 'n13', weight: 0.84, context: 'Co-chaired RSS Foundation Robotics Data Workshop' },
-  { id: 'e21', source: 'n9', target: 'n14', weight: 0.89, context: 'Board advisor & Series A robotics syndicate lead' },
-  { id: 'e25', source: 'n16', target: 'n14', weight: 0.93, context: 'Julian led Rafael’s $18M Series A at Founders Frontier VC' },
-  { id: 'e22', source: 'n11', target: 'n15', weight: 0.91, context: 'Anthropic Core Data & Systems Engineering peers' }
-];
-
-// Outbound Discovery Candidates (Synthesized from GitHub Repos + LinkedIn 1st-Degree Bridges)
-const DISCOVERY_CANDIDATES = [
-  {
-    id: 'disc-1',
-    name: 'Dr. Henrik Lindstrom',
-    role: 'Principal Onboard Inference & Split-Graph Architect',
-    company: 'Figure',
-    degree: 2,
-    trustScore: 0.85,
-    authorityLevel: 'Staff/Principal',
-    cluster: 'Edge ML & Runtimes',
-    strategicValue: 96,
-    location: 'San Jose, CA',
-    repoSource: 'antmikinka/onnx-model-chunking',
-    githubSignal: 'Opened 2 PRs on deterministic subgraph memory pinning & zero-copy ORT execution',
-    bridgeNodeId: 'n5',
-    bridgeEdgeWeight: 0.87,
-    bridgeContext: 'Priya Nair’s peer lead on Figure 02 onboard compute & teleop stack',
-    skills: [
-      'ONNX Runtime & Graph Chunking',
-      'Humanoid Robotics Telemetry & Data Ops',
-      'C++ & Tauri GUI Systems'
-    ],
-    pastState3YrsAgo: {
-      role: 'Sr. Embedded ML Runtime Engineer @ Waymo',
-      similarityScore: 96,
-      vectorCluster: 'Staff Edge ML & Split-Graph Runtime Systems Lead'
-    }
-  },
-  {
-    id: 'disc-2',
-    name: 'Amara Okafor',
-    role: 'Director of Embodied Data Platform & Fleet Indexing',
-    company: 'OpenAI',
-    degree: 2,
-    trustScore: 0.84,
-    authorityLevel: 'Director/VP/Founder',
-    cluster: 'Data Platform & Infra',
-    strategicValue: 98,
-    location: 'San Francisco, CA',
-    repoSource: 'antmikinka/loom',
-    githubSignal: 'Starred antmikinka/loom & cited high-throughput episode validation in DET talk',
-    bridgeNodeId: 'n2',
-    bridgeEdgeWeight: 0.88,
-    bridgeContext: 'Co-chaired DET Bay Area Data Infrastructure summit with Devon Brooks',
-    skills: [
-      'Distributed Data Platform Architecture',
-      'Humanoid Robotics Telemetry & Data Ops',
-      'Automated Test Execution / Loom'
-    ],
-    pastState3YrsAgo: {
-      role: 'Staff Data Platform Engineer @ Cruise',
-      similarityScore: 95,
-      vectorCluster: 'Principal Embodied AI & Humanoid Data Architect'
-    }
-  },
-  {
-    id: 'disc-3',
-    name: 'Kieran Vance-Ho',
-    role: 'Staff Apple Silicon Neural Engine & MLX Architect',
-    company: 'Apple',
-    degree: 2,
-    trustScore: 0.86,
-    authorityLevel: 'Staff/Principal',
-    cluster: 'Edge ML & Runtimes',
-    strategicValue: 95,
-    location: 'Cupertino, CA',
-    repoSource: 'antmikinka/lemon-mlx-engine',
-    githubSignal: 'Benchmarked lemon-mlx-engine unified memory chunking on M4 Max',
-    bridgeNodeId: 'n3',
-    bridgeEdgeWeight: 0.91,
-    bridgeContext: 'Sits in Elena Rostova’s CoreML / MLX compiler group in Cupertino',
-    skills: [
-      'MLX Inference Acceleration',
-      'ONNX Runtime & Graph Chunking',
-      'C++ & Tauri GUI Systems'
-    ],
-    pastState3YrsAgo: {
-      role: 'Sr. Metal Compute & C++ Systems Engineer @ Apple',
-      similarityScore: 93,
-      vectorCluster: 'Staff Edge ML & Split-Graph Runtime Systems Lead'
-    }
-  },
-  {
-    id: 'disc-4',
-    name: 'maya Lin-Sato',
-    role: 'General Partner, Embodied AI & DeepTech Infrastructure',
-    company: 'conviction / Frontier Seed',
-    degree: 2,
-    trustScore: 0.81,
-    authorityLevel: 'Director/VP/Founder',
-    cluster: 'Frontier Execs & Venture',
-    strategicValue: 94,
-    location: 'Palo Alto, CA',
-    repoSource: 'antmikinka/lemonade',
-    githubSignal: 'Featured antmikinka repos in "Top 50 Bay Area Systems & Robotics Builders" memo',
-    bridgeNodeId: 'n6',
-    bridgeEdgeWeight: 0.84,
-    bridgeContext: 'Seed investor in 2 ex-Tesla Lingo & Autopilot founders via Lucas Meyer',
-    skills: [
-      'Humanoid Robotics Telemetry & Data Ops',
-      'Distributed Data Platform Architecture',
-      'ONNX Runtime & Graph Chunking'
-    ],
-    pastState3YrsAgo: {
-      role: 'Head of Autonomy Product & Data Ops @ Aurora',
-      similarityScore: 91,
-      vectorCluster: 'Robotics Data & Eval Platform Founder / VP'
-    }
-  }
-];
-
-// ============================================================================
-// 2. EXPECTED CAREER VALUE (EV) & GRAPH INTELLIGENCE ENGINE
-// ============================================================================
+const DEFAULT_NODES = [];
+const DEFAULT_EDGES = [];
+const DISCOVERY_CANDIDATES = [];
 
 function calculateAutoTrustScore(msgCount = 5, daysSinceConnected = 60, isCoworkerOrTarget = false) {
   const msgTerm = 0.35 * (Math.log(1 + Math.max(0, msgCount)) / Math.log(50));
@@ -1204,8 +619,8 @@ export default function CareerNetworkOptimizer() {
 
   // 5 Main Tabs: 'command' | 'discovery' | 'graph' | 'calculator' | 'database'
   const [activeTab, setActiveTab] = useState('command');
-  const [selectedTargetId, setSelectedTargetId] = useState('n7'); // Default: Dr. Aris Thorne (Tesla)
-  const [compareTargetId, setCompareTargetId] = useState('n9');   // Default Compare: Liam O'Connor (Figure)
+  const [selectedTargetId, setSelectedTargetId] = useState(() => nodes.find(n => n.degree >= 2)?.id || null);
+  const [compareTargetId, setCompareTargetId] = useState(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showAddNodeModal, setShowAddNodeModal] = useState(false);
   const [showAddEdgeModal, setShowAddEdgeModal] = useState(false);
@@ -1270,8 +685,8 @@ export default function CareerNetworkOptimizer() {
       edges: DEFAULT_EDGES,
       lastSavedAt: new Date().toISOString()
     });
-    setSelectedTargetId('n7');
-    notify('Database reset to v3 Founder Seed (Anthony Mikinka • 16 Nodes • EV Engine).');
+    setSelectedTargetId(null);
+    notify('Database reset to clean production state (Anthony Mikinka • 0 placeholder contacts). Ready for your real LinkedIn CSV!');
   };
 
   // Full Graph Intelligence + EV Engine
@@ -1492,7 +907,7 @@ export default function CareerNetworkOptimizer() {
                   </h1>
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/25">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    cno_db_v3 • {nodes.length} Nodes • {edges.length} Edges
+                    cno_db_v5 • {nodes.length} Nodes • {edges.length} Edges
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 flex items-center gap-2 flex-wrap mt-0.5">
@@ -2034,7 +1449,23 @@ function CommandCenterView({
           </div>
 
           <div className="space-y-3.5">
-            {rankedOpportunities.map(({ target, primaryPath, backupPath }, rankIdx) => {
+            {rankedOpportunities.length === 0 ? (
+              <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-8 text-center space-y-3">
+                <Users className="w-8 h-8 text-cyan-400 mx-auto" />
+                <h4 className="text-sm font-bold text-white">Your Graph is Ready for Real Contacts</h4>
+                <p className="text-xs text-slate-400 max-w-md mx-auto">
+                  All mock placeholders have been removed. Ingest your real LinkedIn Connections.csv in the DB tab or click "+ Add Person Node" to begin mapping your warm network pathways.
+                </p>
+                <button
+                  onClick={() => onOpenTab('database')}
+                  className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs inline-flex items-center gap-1.5 transition"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Go to CSV Ingestion</span>
+                </button>
+              </div>
+            ) : (
+              rankedOpportunities.map(({ target, primaryPath, backupPath }, rankIdx) => {
               const clusterStyle = CLUSTER_COLORS[target.cluster] || CLUSTER_COLORS['Robotics & Embodied AI'];
               return (
                 <div
@@ -2120,7 +1551,7 @@ function CommandCenterView({
                   </div>
                 </div>
               );
-            })}
+            }))}
           </div>
         </div>
 
@@ -2138,7 +1569,12 @@ function CommandCenterView({
             </div>
 
             <div className="space-y-3">
-              {bridgeConditioning.map(({ node, currentTrust, boostedTrust, deltaEV, optimalPathsRouted, unlockedTargets }) => (
+              {bridgeConditioning.length === 0 ? (
+                <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-6 text-center text-xs text-slate-400">
+                  No 1st-degree bridges recorded yet. Add your direct colleagues to simulate ΔEV leverage gains.
+                </div>
+              ) : (
+                bridgeConditioning.map(({ node, currentTrust, boostedTrust, deltaEV, optimalPathsRouted, unlockedTargets }) => (
                 <div
                   key={node.id}
                   className="bg-slate-950/85 border border-slate-800/90 rounded-xl p-3.5 space-y-2.5"
@@ -2194,7 +1630,7 @@ function CommandCenterView({
                     </div>
                   )}
                 </div>
-              ))}
+              )))}
             </div>
           </div>
         </div>
@@ -2288,7 +1724,12 @@ function GoalDiscoveryEngineView({
                     <span className="text-[10px] font-mono uppercase text-slate-400 block">
                       HISTORICAL EXEMPLARS IN YOUR GRAPH ({vec.exemplarNodes.length}):
                     </span>
-                    {vec.exemplarNodes.map(ex => (
+                    {vec.exemplarNodes.length === 0 ? (
+                      <div className="text-[11px] text-slate-500 font-mono italic py-1">
+                        No exemplar contacts in graph yet. As you import real contacts, the engine maps their 3-year historical trajectories.
+                      </div>
+                    ) : (
+                      vec.exemplarNodes.map(ex => (
                       <div
                         key={ex.id}
                         onClick={() => onInspectTarget(ex.id, 'calculator')}
@@ -2306,7 +1747,7 @@ function GoalDiscoveryEngineView({
                           {ex.pastState3YrsAgo?.similarityScore}%
                         </span>
                       </div>
-                    ))}
+                    )))}
                   </div>
                 </div>
 
@@ -2354,7 +1795,16 @@ function GoalDiscoveryEngineView({
           </div>
 
           <div className="space-y-3">
-            {filteredCandidates.map(cand => {
+            {filteredCandidates.length === 0 ? (
+              <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-8 text-center space-y-2">
+                <GitPullRequest className="w-6 h-6 text-purple-400 mx-auto" />
+                <p className="text-xs text-slate-300 font-semibold">No Outbound Candidates Discovered Yet</p>
+                <p className="text-[11px] text-slate-400">
+                  Drop your LinkedIn Connections.csv in the DB tab to synthesize outbound targets across your 4 GitHub repositories.
+                </p>
+              </div>
+            ) : (
+              filteredCandidates.map(cand => {
               const alreadyAdded = nodes.some(n => n.id === cand.id);
               const bridgeNode = nodes.find(n => n.id === cand.bridgeNodeId);
               return (
@@ -2407,7 +1857,7 @@ function GoalDiscoveryEngineView({
                   </div>
                 </div>
               );
-            })}
+            }))}
           </div>
         </div>
 
@@ -2933,7 +2383,15 @@ function NetworkGraphView({
               </div>
             )}
           </>
-        ) : null}
+        ) : (
+          <div className="p-8 text-center space-y-3 text-xs">
+            <Network className="w-8 h-8 text-cyan-400 mx-auto" />
+            <h4 className="text-sm font-bold text-white">Your Graph is Clean</h4>
+            <p className="text-slate-400">
+              You are at the center of your graph. Drop your LinkedIn Connections.csv in the DB tab or click "+ Add Person Node" to populate connections.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -3033,7 +2491,17 @@ function PathCalculatorView({
         </div>
       </div>
 
-      {primaryPath ? (
+      {!primaryPath ? (
+        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-12 text-center space-y-3">
+          <Zap className="w-8 h-8 text-cyan-400 mx-auto" />
+          <h3 className="text-base font-bold text-white">No Target Node Selected</h3>
+          <p className="text-xs text-slate-400 max-w-md mx-auto">
+            {nodes.length === 0
+              ? 'Your graph is clean with 0 contacts. Import your LinkedIn Connections.csv in the DB tab or add target contacts to calculate Dijkstra friction paths and generate tailored double-opt-in blurbs.'
+              : 'Select a 2nd or 3rd-degree target contact from the dropdown above to calculate multi-hop Dijkstra paths and generate warm outreach blurbs.'}
+          </p>
+        </div>
+      ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left 7 Cols: EV Breakdown & Hop Chain */}
           <div className="lg:col-span-7 space-y-6">
@@ -3208,7 +2676,7 @@ function PathCalculatorView({
             </button>
           </div>
         </div>
-      ) : null}
+      )}
     </div>
   );
 }
@@ -3591,10 +3059,10 @@ function UnifiedDatabaseAndIngestView({
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = 'cno_db_v3.json';
+                    a.download = 'cno_db_v5.json';
                     a.click();
                     URL.revokeObjectURL(url);
-                    onNotify('Downloaded cno_db_v3.json!');
+                    onNotify('Downloaded cno_db_v5.json!');
                   }}
                   className="px-4 py-2 rounded-xl bg-slate-800 text-xs font-mono text-cyan-300 border border-slate-700"
                 >
