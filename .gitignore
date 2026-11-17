@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.venv/
+venv/
+ENV/
+
+# Node
+node_modules/
+frontend/node_modules/
+frontend/dist/
+.npm
+*.log
+
+# SQLite & User Data
+data/*.db
+data/*.db-wal
+data/*.db-shm
+!data/imports/sample_linkedin_archive.zip
+
+# OS
+.DS_Store
+Thumbs.db
