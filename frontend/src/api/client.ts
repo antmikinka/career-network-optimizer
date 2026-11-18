@@ -1,267 +1,364 @@
-import { NetworkGraphState, UserProfile, UserSkill, NetworkNode, NetworkEdge, CalculatedPath, OutreachPackage } from '../types/graph';
-import { DEFAULT_GRAPH_STATE, DEFAULT_USER_PROFILE } from '../data/defaultData';
+import {
+  ContactNode,
+  GitHubCandidate,
+  GraphEdge,
+  PipelineExecutionSummary,
+  UnifiedAppState,
+  UserProfile,
+} from '../types/graph';
+import { DEFAULT_PROFILE, STORAGE_KEY } from '../engine/graphEngine';
 
 const API_BASE = '/api';
 
-// Storage keys for offline persistence
-const STORAGE_GRAPH_KEY = 'cno_network_graph_v1';
-const STORAGE_USER_KEY = 'cno_user_profile_v1';
-
-function loadStoredState(): NetworkGraphState {
+export function loadLocalCache(): UnifiedAppState {
   try {
-    const raw = localStorage.getItem(STORAGE_GRAPH_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch (e) {
-    console.error('Failed to parse cached graph', e);
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed.profile && Array.isArray(parsed.nodes) && Array.isArray(parsed.edges)) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to parse local cache:', err);
   }
-  return DEFAULT_GRAPH_STATE;
+  return {
+    profile: DEFAULT_PROFILE,
+    nodes: [],
+    edges: [],
+    lastSavedAt: new Date().toISOString(),
+  };
 }
 
-function saveStoredState(state: NetworkGraphState) {
+export function saveLocalCache(state: UnifiedAppState): void {
   try {
-    localStorage.setItem(STORAGE_GRAPH_KEY, JSON.stringify(state));
-  } catch (e) {
-    console.error('Failed to cache graph state', e);
-  }
-}
-
-function loadStoredUser(): UserProfile {
-  try {
-    const raw = localStorage.getItem(STORAGE_USER_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch (e) {
-    console.error('Failed to parse cached profile', e);
-  }
-  return DEFAULT_USER_PROFILE;
-}
-
-function saveStoredUser(profile: UserProfile) {
-  try {
-    localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(profile));
-  } catch (e) {
-    console.error('Failed to cache user profile', e);
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        ...state,
+        lastSavedAt: new Date().toISOString(),
+      })
+    );
+  } catch (err) {
+    console.warn('Failed to write local cache:', err);
   }
 }
 
-export const apiClient = {
-  async isBackendHealthy(): Promise<boolean> {
+export const syncClient = {
+  async fetchUnifiedState(
+    userId = 'default_user'
+  ): Promise<{ state: UnifiedAppState; backendOnline: boolean }> {
     try {
-      const res = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(2000) });
+      const res = await fetch(`${API_BASE}/state/${userId}`, {
+        signal: AbortSignal.timeout(3500),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const state: UnifiedAppState = {
+          profile: data.profile,
+          nodes: data.nodes || [],
+          edges: data.edges || [],
+          lastSavedAt: data.synced_at || new Date().toISOString(),
+        };
+        saveLocalCache(state);
+        return { state, backendOnline: true };
+      }
+    } catch {
+      // Fall back to local cache seamlessly
+    }
+    return { state: loadLocalCache(), backendOnline: false };
+  },
+
+  async pushFullSnapshot(
+    snapshot: UnifiedAppState,
+    userId = 'default_user'
+  ): Promise<UnifiedAppState> {
+    saveLocalCache(snapshot);
+    const res = await fetch(`${API_BASE}/state/${userId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(snapshot),
+    });
+    if (!res.ok) throw new Error('Backend snapshot sync failed');
+    const data = await res.json();
+    const synced: UnifiedAppState = {
+      profile: data.profile,
+      nodes: data.nodes,
+      edges: data.edges,
+      lastSavedAt: data.synced_at,
+    };
+    saveLocalCache(synced);
+    return synced;
+  },
+
+  async updateProfile(
+    profile: UserProfile,
+    userId = 'default_user'
+  ): Promise<UnifiedAppState | null> {
+    try {
+      const res = await fetch(`${API_BASE}/users/${userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(profile),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return { profile: data.profile, nodes: data.nodes, edges: data.edges };
+      }
+    } catch {
+      // Offline mode handled by caller
+    }
+    return null;
+  },
+
+  async createNode(
+    payload: Partial<ContactNode> & {
+      name: string;
+      bridgeId?: string;
+      bridgeWeight?: number;
+      pastRole3YrsAgo?: string;
+      similarityScore?: number;
+    },
+    userId = 'default_user'
+  ): Promise<UnifiedAppState | null> {
+    try {
+      const res = await fetch(`${API_BASE}/nodes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: payload.id,
+          user_id: userId,
+          full_name: payload.name,
+          role: payload.role,
+          company: payload.company,
+          location: payload.location,
+          degree: payload.degree,
+          trust_score: payload.trustScore,
+          strategic_value: payload.strategicValue,
+          authority_level: payload.authorityLevel,
+          cluster: payload.cluster,
+          skills: payload.skills || [],
+          past_role_3yrs_ago: payload.pastRole3YrsAgo || payload.pastState3YrsAgo?.role || '',
+          knn_similarity: payload.similarityScore || payload.pastState3YrsAgo?.similarityScore || 0,
+          vector_cluster: payload.pastState3YrsAgo?.vectorCluster || '',
+          github_overlap: payload.githubOverlap || '',
+          linkedin_url: payload.linkedinUrl || '',
+          message_count: payload.messageCount || 0,
+          bridge_id: payload.bridgeId,
+          bridge_weight: payload.bridgeWeight,
+          notes: payload.notes || payload.context || '',
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.state) {
+          saveLocalCache(data.state);
+          return data.state;
+        }
+      }
+    } catch {
+      // Offline fallback handled by caller
+    }
+    return null;
+  },
+
+  async patchNode(
+    nodeId: string,
+    patch: Partial<ContactNode> & { pastRole3YrsAgo?: string; similarityScore?: number }
+  ): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE}/nodes/${encodeURIComponent(nodeId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name: patch.name,
+          role: patch.role,
+          company: patch.company,
+          location: patch.location,
+          degree: patch.degree,
+          trust_score: patch.trustScore,
+          strategic_value: patch.strategicValue,
+          authority_level: patch.authorityLevel,
+          cluster: patch.cluster,
+          skills: patch.skills,
+          past_role_3yrs_ago: patch.pastRole3YrsAgo,
+          knn_similarity: patch.similarityScore,
+          github_overlap: patch.githubOverlap,
+          notes: patch.notes ?? patch.context,
+        }),
+      });
       return res.ok;
     } catch {
       return false;
     }
   },
 
-  async getUserProfile(userId: string = 'default_user'): Promise<UserProfile> {
-    try {
-      const res = await fetch(`${API_BASE}/users/${userId}`, { signal: AbortSignal.timeout(3000) });
-      if (res.ok) {
-        const data = await res.json();
-        saveStoredUser(data);
-        return data;
-      }
-    } catch (e) {
-      console.warn('Backend unavailable, using cached profile', e);
-    }
-    return loadStoredUser();
-  },
-
-  async updateUserProfile(userId: string, update: Partial<UserProfile>): Promise<UserProfile> {
-    try {
-      const res = await fetch(`${API_BASE}/users/${userId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(update),
-      });
-      if (res.ok) {
-        return this.getUserProfile(userId);
-      }
-    } catch (e) {
-      console.warn('Backend unavailable, updating local cache', e);
-    }
-    const current = loadStoredUser();
-    const updated = { ...current, ...update };
-    saveStoredUser(updated);
-    return updated;
-  },
-
-  async getNetworkGraph(userId: string = 'default_user'): Promise<NetworkGraphState> {
-    try {
-      const res = await fetch(`${API_BASE}/graph/${userId}`, { signal: AbortSignal.timeout(4000) });
-      if (res.ok) {
-        const data = await res.json();
-        saveStoredState(data);
-        return data;
-      }
-    } catch (e) {
-      console.warn('Backend unavailable, using local graph cache', e);
-    }
-    return loadStoredState();
-  },
-
-  async patchNode(nodeId: string, patch: Partial<NetworkNode>): Promise<boolean> {
-    try {
-      const res = await fetch(`${API_BASE}/nodes/${nodeId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(patch),
-      });
-      if (res.ok) return true;
-    } catch (e) {
-      console.warn('Backend unavailable, applying local node patch', e);
-    }
-    
-    // Local fallback update
-    const current = loadStoredState();
-    const updatedNodes = current.nodes.map(n => n.id === nodeId ? { ...n, ...patch } : n);
-    const updatedEdges = current.edges.map(e => {
-      if (patch.trust_score !== undefined && (e.source === nodeId || e.target === nodeId) && e.relationship_type === 'linkedin_1st') {
-        return { ...e, weight: patch.trust_score };
-      }
-      return e;
-    });
-    saveStoredState({ ...current, nodes: updatedNodes, edges: updatedEdges });
-    return true;
-  },
-
-  async createNode(node: Partial<NetworkNode> & { user_id: string; full_name: string }): Promise<NetworkNode> {
-    try {
-      const res = await fetch(`${API_BASE}/nodes`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(node),
-      });
-      if (res.ok) {
-        const result = await res.json();
-        return { ...node, id: result.node_id } as NetworkNode;
-      }
-    } catch (e) {
-      console.warn('Backend unavailable, creating local node', e);
-    }
-    
-    const newNode: NetworkNode = {
-      id: node.id || `${node.user_id}_n_${Date.now()}`,
-      full_name: node.full_name,
-      role: node.role || 'Professional',
-      company: node.company || 'Tech Corp',
-      degree: node.degree ?? 1,
-      trust_score: node.trust_score ?? 0.5,
-      strategic_value: node.strategic_value ?? 60,
-      skills: node.skills || ['Distributed Systems'],
-      notes: node.notes || 'Added manually'
-    };
-    
-    const current = loadStoredState();
-    current.nodes.push(newNode);
-    if (newNode.degree === 1) {
-      current.edges.push({
-        source: `${node.user_id}_root`,
-        target: newNode.id,
-        weight: newNode.trust_score,
-        relationship_type: 'direct',
-        context: 'Direct connection'
-      });
-    }
-    saveStoredState(current);
-    return newNode;
-  },
-
   async deleteNode(nodeId: string): Promise<boolean> {
     try {
-      const res = await fetch(`${API_BASE}/nodes/${nodeId}`, { method: 'DELETE' });
-      if (res.ok) return true;
-    } catch (e) {
-      console.warn('Backend unavailable, deleting local node', e);
+      const res = await fetch(`${API_BASE}/nodes/${encodeURIComponent(nodeId)}`, {
+        method: 'DELETE',
+      });
+      return res.ok;
+    } catch {
+      return false;
     }
-    
-    const current = loadStoredState();
-    const filteredNodes = current.nodes.filter(n => n.id !== nodeId);
-    const filteredEdges = current.edges.filter(e => e.source !== nodeId && e.target !== nodeId);
-    saveStoredState({ ...current, nodes: filteredNodes, edges: filteredEdges });
-    return true;
   },
 
-  async getOutreach(userId: string, targetId: string): Promise<{ outreach: OutreachPackage; bridge_name: string; bridge_company: string; conversion_prob: number }> {
+  async createEdge(
+    edge: { source: string; target: string; weight: number; context: string },
+    userId = 'default_user'
+  ): Promise<UnifiedAppState | null> {
     try {
-      const res = await fetch(`${API_BASE}/outreach/${userId}/${targetId}`);
+      const res = await fetch(`${API_BASE}/edges`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: userId,
+          source: edge.source,
+          target: edge.target,
+          weight: edge.weight,
+          relationship_type: 'custom_bridge',
+          context: edge.context,
+        }),
+      });
       if (res.ok) {
-        return await res.json();
+        const data = await res.json();
+        if (data.state) {
+          saveLocalCache(data.state);
+          return data.state;
+        }
       }
-    } catch (e) {
-      console.warn('Backend unavailable, generating local outreach template', e);
+    } catch {
+      // Offline fallback handled by caller
     }
-
-    const state = loadStoredState();
-    const user = loadStoredUser();
-    const target = state.nodes.find(n => n.id === targetId);
-    const matchedPath = state.calculated_paths.find(p => p.target_id === targetId);
-
-    const bridgeName = matchedPath ? matchedPath.bridge_name : 'Colleague';
-    const bridgeCompany = matchedPath ? matchedPath.bridge_company : 'Tech';
-    const targetName = target ? target.full_name : 'Target Lead';
-    const targetCompany = target ? target.company : 'Company';
-    const targetRole = target ? target.role : 'Leader';
-
-    return {
-      bridge_name: bridgeName,
-      bridge_company: bridgeCompany,
-      conversion_prob: matchedPath ? matchedPath.conversion_prob : 65.0,
-      outreach: {
-        email_subject: `Introduction: ${user.full_name} <> ${targetName} (${targetCompany})`,
-        bridge_intro_request: `Hi ${bridgeName.split(' ')[0]},\n\nHope things are going well at ${bridgeCompany}! I've been closely following what ${targetCompany} is building in robotics data platforms and distributed systems, and noticed you're connected with ${targetName} (${targetRole}).\n\nI'm exploring strategic engineering roles aligned with my background in ${user.headline}. Would you be open to introducing us if you feel comfortable? I've prepared a brief forwardable blurb below to keep it zero-lift for you.\n\nBest,\n${user.full_name}`,
-        forwardable_blurb: `Hey ${targetName.split(' ')[0]} — Quick warm intro to ${user.full_name} (${user.headline}).\n\n${user.full_name} has deep hands-on expertise in distributed infrastructure and data operations. Given your focus at ${targetCompany} on scaling systems, thought you two would benefit from connecting. I've known ${user.full_name} and can vouch for their technical execution.\n\nDropping ${user.full_name}'s info here in case you'd like to chat!`
-      }
-    };
+    return null;
   },
 
-  async uploadLinkedInArchive(file: File, userId: string = 'default_user'): Promise<any> {
+  async deleteEdge(edge: GraphEdge, userId = 'default_user'): Promise<boolean> {
+    try {
+      const qs = new URLSearchParams({
+        user_id: userId,
+        source: edge.source,
+        target: edge.target,
+      });
+      const res = await fetch(
+        `${API_BASE}/edges/${encodeURIComponent(edge.id)}?${qs.toString()}`,
+        { method: 'DELETE' }
+      );
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
+
+  async uploadLinkedInFile(
+    file: File,
+    userId = 'default_user'
+  ): Promise<{
+    results: {
+      first_degree_count: number;
+      second_degree_count: number;
+      bridges_synthesized: number;
+      edges_count: number;
+    };
+    state: UnifiedAppState;
+  }> {
     const formData = new FormData();
-    formData.append('file', file);
     formData.append('user_id', userId);
+    formData.append('file', file);
 
     const res = await fetch(`${API_BASE}/ingest/linkedin`, {
       method: 'POST',
       body: formData,
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ detail: 'Upload failed' }));
-      throw new Error(err.detail || 'Archive upload failed');
+      const err = await res.json().catch(() => ({ detail: 'Archive import failed' }));
+      throw new Error(err.detail || 'Archive import failed');
     }
-    return await res.json();
+    const data = await res.json();
+    saveLocalCache(data.state);
+    return data;
   },
 
-  async uploadResume(resumeText: string, file?: File, userId: string = 'default_user'): Promise<any> {
+  async uploadResume(
+    resumeText: string,
+    file?: File,
+    userId = 'default_user'
+  ): Promise<{ skills_saved: number; state: UnifiedAppState }> {
     const formData = new FormData();
     formData.append('user_id', userId);
     formData.append('resume_text', resumeText);
-    if (file) {
-      formData.append('file', file);
-    }
+    if (file) formData.append('file', file);
 
     const res = await fetch(`${API_BASE}/ingest/resume`, {
       method: 'POST',
       body: formData,
     });
     if (!res.ok) {
-      throw new Error('Resume processing failed');
+      const err = await res.json().catch(() => ({ detail: 'Resume parse failed' }));
+      throw new Error(err.detail || 'Resume parse failed');
     }
-    return await res.json();
+    const data = await res.json();
+    saveLocalCache(data.state);
+    return { skills_saved: data.result.skills_saved, state: data.state };
   },
 
-  async resetDemo(userId: string = 'default_user'): Promise<boolean> {
+  async discoverGitHubCandidates(
+    userId = 'default_user'
+  ): Promise<{ candidates: GitHubCandidate[]; notes: string[] }> {
+    const res = await fetch(`${API_BASE}/discover/github/${userId}`);
+    if (!res.ok) {
+      throw new Error('GitHub discovery endpoint unreachable');
+    }
+    const data = await res.json();
+    return { candidates: data.candidates || [], notes: data.notes || [] };
+  },
+
+  async runRecalculationPipeline(
+    processors: string[],
+    paramsMap: Record<string, Record<string, unknown>>,
+    userId = 'default_user'
+  ): Promise<{ pipeline: PipelineExecutionSummary; state: UnifiedAppState }> {
+    const res = await fetch(`${API_BASE}/process/pipeline`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: userId,
+        processors,
+        params_map: paramsMap,
+      }),
+    });
+    if (!res.ok) {
+      throw new Error('Backend pipeline execution failed');
+    }
+    const data = await res.json();
+    saveLocalCache(data.state);
+    return { pipeline: data.pipeline, state: data.state };
+  },
+
+  async resetDatabase(userId = 'default_user'): Promise<UnifiedAppState | null> {
     try {
-      const res = await fetch(`${API_BASE}/demo-seed/${userId}`, { method: 'POST' });
+      const res = await fetch(`${API_BASE}/reset/${userId}`, { method: 'POST' });
       if (res.ok) {
-        saveStoredState(DEFAULT_GRAPH_STATE);
-        saveStoredUser(DEFAULT_USER_PROFILE);
-        return true;
+        const data = await res.json();
+        saveLocalCache(data.state);
+        return data.state;
       }
     } catch {
-      // offline reset
+      // Offline fallback
     }
-    saveStoredState(DEFAULT_GRAPH_STATE);
-    saveStoredUser(DEFAULT_USER_PROFILE);
-    return true;
-  }
+    return null;
+  },
+
+  async fetchSeedSQL(userId = 'default_user'): Promise<string | null> {
+    try {
+      const res = await fetch(`${API_BASE}/export/sql/${userId}`);
+      if (res.ok) {
+        return await res.text();
+      }
+    } catch {
+      // Offline fallback
+    }
+    return null;
+  },
 };

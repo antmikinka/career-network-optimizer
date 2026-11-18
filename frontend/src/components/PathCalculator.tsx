@@ -1,340 +1,369 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  GitFork, 
-  ArrowRight, 
-  Copy, 
-  Check, 
-  Sparkles, 
-  Mail, 
-  Send, 
-  Building2, 
-  ShieldCheck, 
-  Layers, 
-  Cpu
-} from 'lucide-react';
-import { NetworkGraphState, UserProfile, OutreachPackage } from '../types/graph';
-import { apiClient } from '../api/client';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Check, Copy, Sparkles, Zap } from 'lucide-react';
+import {
+  ContactNode,
+  EvaluatedPath,
+  GoalModeId,
+  GraphEdge,
+  NetworkIntelligence,
+  UserProfile,
+} from '../types/graph';
+import {
+  buildGoalAwareOutreach,
+  computePathsAndEV,
+  GOAL_MODES,
+} from '../engine/graphEngine';
+import { GoalModeSelectorBar } from './GoalModeSelectorBar';
 
 interface PathCalculatorProps {
-  graphState: NetworkGraphState;
-  userProfile: UserProfile;
+  profile: UserProfile;
+  nodes: ContactNode[];
+  edges: GraphEdge[];
+  intelligence: NetworkIntelligence;
   selectedTargetId: string | null;
-  onSelectTarget: (targetId: string) => void;
+  setSelectedTargetId: (id: string | null) => void;
+  compareTargetId: string | null;
+  setCompareTargetId: (id: string | null) => void;
+  selectedNodePaths: EvaluatedPath[];
+  onSelectGoalMode: (mode: GoalModeId) => void;
+  onNotify: (msg: string) => void;
 }
 
 export const PathCalculator: React.FC<PathCalculatorProps> = ({
-  graphState,
-  userProfile,
+  profile,
+  nodes,
+  edges,
+  intelligence,
   selectedTargetId,
-  onSelectTarget
+  setSelectedTargetId,
+  compareTargetId,
+  setCompareTargetId,
+  selectedNodePaths,
+  onSelectGoalMode,
+  onNotify,
 }) => {
-  const [activeTab, setActiveTab] = useState<'request' | 'blurb' | 'email'>('request');
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  const [outreachData, setOutreachData] = useState<OutreachPackage | null>(null);
-  const [isLoadingOutreach, setIsLoadingOutreach] = useState(false);
+  const [templateType, setTemplateType] = useState<
+    'forwardable' | 'ask_bridge' | 'direct_dm'
+  >('forwardable');
+  const [customMessage, setCustomMessage] = useState('');
+  const [copied, setCopied] = useState(false);
 
-  // Available 2nd & 3rd degree targets
-  const targetNodes = graphState.nodes.filter(n => n.degree >= 2);
-  const currentTargetId = selectedTargetId || (targetNodes.length > 0 ? targetNodes[0].id : null);
-  const currentTarget = graphState.nodes.find(n => n.id === currentTargetId);
-  const matchedPath = graphState.calculated_paths.find(p => p.target_id === currentTargetId);
+  const primaryPath = selectedNodePaths[0] || null;
+  const backupPath = selectedNodePaths[1] || null;
+
+  const comparePaths = useMemo(() => {
+    const clusterMap = new Map(intelligence.clusterStats.map((c) => [c.cluster, c]));
+    return computePathsAndEV(profile, nodes, edges, compareTargetId, clusterMap);
+  }, [profile, nodes, edges, compareTargetId, intelligence.clusterStats]);
+  const comparePrimary = comparePaths[0] || null;
 
   useEffect(() => {
-    if (!currentTargetId) return;
+    if (primaryPath) {
+      setCustomMessage(buildGoalAwareOutreach(profile, primaryPath, templateType));
+    } else {
+      setCustomMessage('');
+    }
+  }, [profile, primaryPath, templateType]);
 
-    let isMounted = true;
-    setIsLoadingOutreach(true);
-
-    apiClient.getOutreach(userProfile.id, currentTargetId)
-      .then(res => {
-        if (isMounted) {
-          setOutreachData(res.outreach);
-          setIsLoadingOutreach(false);
-        }
-      })
-      .catch(err => {
-        console.error('Failed to fetch outreach blurbs', err);
-        if (isMounted) setIsLoadingOutreach(false);
-      });
-
-    return () => { isMounted = false; };
-  }, [currentTargetId, userProfile.id]);
-
-  const handleCopy = (text: string, key: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedKey(key);
-    setTimeout(() => setCopiedKey(null), 2500);
+  const handleCopy = () => {
+    if (!customMessage) return;
+    navigator.clipboard.writeText(customMessage);
+    setCopied(true);
+    onNotify('Copied goal-tailored warm intro blurb to clipboard!');
+    setTimeout(() => setCopied(false), 2500);
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12">
-      {/* Target Decision Maker Selector Toolbar */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 flex flex-col md:flex-row items-center justify-between gap-4 backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-purple-950 border border-purple-500/30 flex items-center justify-center text-purple-400">
-            <GitFork className="h-5 w-5" />
-          </div>
-          <div>
-            <h2 className="text-base font-bold text-white tracking-tight">Weighted Path &amp; Outreach Engine</h2>
-            <p className="text-xs text-slate-400">Dijkstra friction-minimized warm introduction routes with forwardable blurbs</p>
-          </div>
+    <div className="space-y-6">
+      <GoalModeSelectorBar
+        activeGoalMode={profile.activeGoalMode}
+        onSelectGoalMode={onSelectGoalMode}
+      />
+
+      <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <Zap className="w-5 h-5 text-cyan-400" />
+            <span>Dijkstra EV Path Calculator & Double-Opt-In Blurb Synthesizer</span>
+          </h2>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Outreach angle automatically adapts to your active Goal Mode (
+            <strong className="text-cyan-300">
+              {GOAL_MODES.find((m) => m.id === profile.activeGoalMode)?.name}
+            </strong>
+            )
+          </p>
         </div>
 
-        {/* Target Selector Dropdown */}
-        <div className="flex items-center gap-2 w-full md:w-auto">
-          <span className="text-xs text-slate-400 shrink-0 font-medium">Select Target Node:</span>
-          <select
-            value={currentTargetId || ''}
-            onChange={(e) => onSelectTarget(e.target.value)}
-            className="w-full md:w-80 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs font-semibold text-white focus:outline-none focus:border-purple-500"
-          >
-            {targetNodes.map(t => (
-              <option key={t.id} value={t.id}>
-                {t.full_name} — {t.role} ({t.company})
-              </option>
-            ))}
-          </select>
+        <div className="flex flex-wrap items-center gap-3">
+          <div>
+            <label className="text-[10px] font-mono uppercase text-cyan-400 block mb-1">
+              PRIMARY TARGET NODE
+            </label>
+            <select
+              value={selectedTargetId || ''}
+              onChange={(e) => setSelectedTargetId(e.target.value || null)}
+              className="bg-slate-950 border border-cyan-500/50 rounded-xl px-3 py-2 text-xs text-white font-medium min-w-[220px]"
+            >
+              <option value="">— Select Contact —</option>
+              {nodes.map((n) => (
+                <option key={n.id} value={n.id}>
+                  [{n.degree}°] {n.name} — {n.role} ({n.company})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-mono uppercase text-indigo-400 block mb-1">
+              COMPARE TARGET
+            </label>
+            <select
+              value={compareTargetId || ''}
+              onChange={(e) => setCompareTargetId(e.target.value || null)}
+              className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 min-w-[200px]"
+            >
+              <option value="">— Optional Comparison —</option>
+              {nodes.map((n) => (
+                <option key={n.id} value={n.id}>
+                  [{n.degree}°] {n.name} — {n.company}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
-      {currentTarget && matchedPath ? (
+      {!primaryPath ? (
+        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-12 text-center space-y-3">
+          <Zap className="w-8 h-8 text-cyan-400 mx-auto" />
+          <h3 className="text-base font-bold text-white">
+            {selectedTargetId
+              ? 'No Connected Bridge Path Found to This Node'
+              : 'Select a Target Contact Above'}
+          </h3>
+          <p className="text-xs text-slate-400 max-w-md mx-auto">
+            {nodes.length === 0
+              ? 'Upload your LinkedIn Connections.csv or .zip archive in the DB tab to populate your real network and compute multi-hop Dijkstra paths.'
+              : selectedTargetId
+              ? 'Wire a bridge edge from one of your 1st-degree contacts to this node (or run the Company Bridge Synthesizer in Recalculate & Process).'
+              : 'Choose any 1st-, 2nd-, or 3rd-degree contact from the dropdown above to evaluate logarithmic friction costs and generate double-opt-in blurbs.'}
+          </p>
+        </div>
+      ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Column: Route Topology & Metrics Breakdown (5 cols) */}
-          <div className="lg:col-span-5 space-y-5">
-            {/* Conversion Probability & Friction Score Card */}
-            <div className="bg-gradient-to-br from-slate-900 via-slate-900/90 to-purple-950/20 border border-purple-500/30 rounded-2xl p-5 shadow-xl space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-mono font-medium text-purple-300">Target Telemetry</span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-950 border border-purple-800 text-purple-300">
-                  {matchedPath.target_degree}nd Degree Path
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <div className="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800">
-                  <div className="text-xs text-slate-400">Conversion Probability</div>
-                  <div className="text-2xl font-bold font-mono text-emerald-400 mt-1">
-                    {matchedPath.conversion_prob}%
-                  </div>
-                  <div className="text-[10px] text-slate-500 mt-0.5">P = exp(-friction_cost)</div>
+          {/* Left 7 Cols: EV Breakdown & Hop Chain */}
+          <div className="lg:col-span-7 space-y-6">
+            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-5">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-slate-950 border border-emerald-500/30 rounded-xl p-3">
+                  <span className="text-[10px] font-mono text-slate-400 block">
+                    EXPECTED VALUE
+                  </span>
+                  <span className="text-xl font-bold font-mono text-emerald-400">
+                    {primaryPath.evScore} EV
+                  </span>
                 </div>
-
-                <div className="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800">
-                  <div className="text-xs text-slate-400">Total Path Friction</div>
-                  <div className="text-2xl font-bold font-mono text-indigo-300 mt-1">
-                    {matchedPath.friction_cost}
-                  </div>
-                  <div className="text-[10px] text-slate-500 mt-0.5">&Sigma; -ln(w_i) cost</div>
+                <div className="bg-slate-950 border border-slate-800 rounded-xl p-3">
+                  <span className="text-[10px] font-mono text-slate-400 block">
+                    P(REACH)
+                  </span>
+                  <span className="text-xl font-bold font-mono text-cyan-300">
+                    {primaryPath.conversionProb}%
+                  </span>
                 </div>
-              </div>
-
-              <div className="space-y-1.5 pt-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400">Strategic Target Alignment</span>
-                  <span className="font-mono text-white font-semibold">{matchedPath.strategic_value} / 100</span>
+                <div className="bg-slate-950 border border-slate-800 rounded-xl p-3">
+                  <span className="text-[10px] font-mono text-slate-400 block">
+                    AUTHORITY TIER
+                  </span>
+                  <span className="text-base font-bold font-mono text-indigo-300">
+                    {primaryPath.authorityMultiplier}x (
+                    {primaryPath.authorityLevel.split('/')[0]})
+                  </span>
                 </div>
-                <div className="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden">
-                  <div 
-                    className="bg-purple-500 h-full rounded-full transition-all duration-500" 
-                    style={{ width: `${matchedPath.strategic_value}%` }}
-                  />
+                <div className="bg-slate-950 border border-slate-800 rounded-xl p-3">
+                  <span className="text-[10px] font-mono text-slate-400 block">
+                    k-NN 3YR SIMILARITY
+                  </span>
+                  <span className="text-xl font-bold font-mono text-amber-300">
+                    {primaryPath.knnMatchScore}%
+                  </span>
                 </div>
               </div>
-            </div>
 
-            {/* Visual Step-by-Step Flowchart */}
-            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-4">
-              <h3 className="font-semibold text-white text-xs uppercase tracking-wider flex items-center gap-1.5">
-                <Layers className="h-3.5 w-3.5 text-indigo-400" />
-                <span>Multi-Hop Traversal Sequence</span>
-              </h3>
+              <div className="space-y-2.5">
+                <h3 className="text-xs font-mono uppercase tracking-wider text-slate-400">
+                  Primary Route #1 Hop-by-Hop Log Friction Chain
+                </h3>
+                {primaryPath.nodes.map((node, i) => {
+                  const edge = primaryPath.edges[i];
+                  return (
+                    <div key={node.id}>
+                      <div className="bg-slate-950 border border-slate-800 rounded-xl p-3.5 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <span className="w-7 h-7 rounded-lg bg-cyan-500/20 text-cyan-300 font-mono text-xs font-bold flex items-center justify-center">
+                            H{i}
+                          </span>
+                          <div>
+                            <div className="font-bold text-white text-sm">
+                              {node.name}{' '}
+                              <span className="text-xs font-mono text-cyan-400">
+                                @ {node.company}
+                              </span>
+                            </div>
+                            <div className="text-xs text-slate-400">{node.role}</div>
+                          </div>
+                        </div>
+                        <span className="text-xs font-mono text-slate-400">
+                          {i === 0 ? 'Origin (0°)' : node.cluster}
+                        </span>
+                      </div>
 
-              <div className="space-y-3 relative before:absolute before:left-4 before:top-4 before:bottom-4 before:w-0.5 before:bg-slate-800">
-                {/* Step 1: Root */}
-                <div className="flex items-start gap-3 relative z-10">
-                  <div className="h-8 w-8 rounded-full bg-indigo-600 border-2 border-slate-950 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow">
-                    0
+                      {edge && (
+                        <div className="my-1.5 ml-6 pl-4 border-l-2 border-dashed border-cyan-500/40 py-1 flex flex-wrap items-center justify-between text-xs font-mono">
+                          <span className="text-slate-300">{edge.context}</span>
+                          <div className="flex items-center gap-3">
+                            <span className="text-emerald-400">w = {edge.weight}</span>
+                            <span className="text-cyan-300">
+                              -ln(w) = {edge.cost.toFixed(3)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="pt-3 border-t border-slate-800 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-slate-950/90 border border-cyan-500/30 rounded-xl p-3.5 space-y-1">
+                  <div className="flex items-center justify-between text-xs font-mono">
+                    <span className="text-cyan-400 font-bold">PRIMARY ROUTE #1</span>
+                    <span className="text-emerald-400 font-bold">
+                      {primaryPath.evScore} EV ({primaryPath.conversionProb}%)
+                    </span>
                   </div>
-                  <div className="bg-slate-950/70 p-3 rounded-xl border border-slate-800/80 flex-1">
-                    <div className="text-xs font-semibold text-white">{userProfile.full_name} (You)</div>
-                    <div className="text-[11px] text-slate-400">{userProfile.headline}</div>
-                  </div>
+                  <p className="text-xs text-slate-300 font-mono">
+                    {primaryPath.nodes.map((n) => n.name.split(' ')[0]).join(' → ')}
+                  </p>
                 </div>
 
-                {/* Step 2: Bridge Connector */}
-                <div className="flex items-start gap-3 relative z-10">
-                  <div className="h-8 w-8 rounded-full bg-indigo-500 border-2 border-slate-950 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow">
-                    1
-                  </div>
-                  <div className="bg-slate-950/70 p-3 rounded-xl border border-indigo-500/30 flex-1">
-                    <div className="flex items-center justify-between">
-                      <div className="text-xs font-semibold text-indigo-300">{matchedPath.bridge_name}</div>
-                      <span className="text-[10px] font-mono text-emerald-400 font-medium">
-                        {Math.round(matchedPath.bridge_trust * 100)}% Trust
+                {backupPath ? (
+                  <div className="bg-slate-950/90 border border-slate-800 rounded-xl p-3.5 space-y-1">
+                    <div className="flex items-center justify-between text-xs font-mono">
+                      <span className="text-indigo-300 font-bold">BACKUP ROUTE #2</span>
+                      <span className="text-indigo-300 font-bold">
+                        {backupPath.evScore} EV ({backupPath.conversionProb}%)
                       </span>
                     </div>
-                    <div className="text-[11px] text-slate-300">{matchedPath.bridge_role}</div>
-                    <div className="text-[11px] text-slate-500 font-mono mt-1">Company: {matchedPath.bridge_company}</div>
+                    <p className="text-xs text-slate-300 font-mono">
+                      {backupPath.nodes.map((n) => n.name.split(' ')[0]).join(' → ')}
+                    </p>
                   </div>
-                </div>
-
-                {/* Step 3: Target Decision Maker */}
-                <div className="flex items-start gap-3 relative z-10">
-                  <div className="h-8 w-8 rounded-full bg-emerald-500 border-2 border-slate-950 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow">
-                    2
+                ) : (
+                  <div className="bg-slate-950/50 border border-slate-800/60 rounded-xl p-3.5 flex items-center justify-center text-xs text-slate-500 font-mono">
+                    Single optimal bridge route
                   </div>
-                  <div className="bg-slate-950/70 p-3 rounded-xl border border-emerald-500/40 flex-1">
-                    <div className="text-xs font-semibold text-emerald-300">{matchedPath.target_name}</div>
-                    <div className="text-[11px] text-slate-300">{matchedPath.target_role}</div>
-                    <div className="text-[11px] text-emerald-400 font-mono mt-1">Company: {matchedPath.target_company}</div>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
 
-            {/* Shared Skills Overlap */}
-            {matchedPath.shared_skills && matchedPath.shared_skills.length > 0 && (
-              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4">
-                <span className="text-xs text-slate-400 font-medium block mb-2 flex items-center gap-1.5">
-                  <Cpu className="h-3.5 w-3.5 text-purple-400" />
-                  <span>Shared Technical Competencies with Target Vector</span>
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {matchedPath.shared_skills.map((skill) => (
-                    <span 
-                      key={skill}
-                      className="px-2.5 py-1 rounded-md text-xs font-mono font-medium bg-purple-950/60 text-purple-300 border border-purple-800/60"
-                    >
-                      {skill}
-                    </span>
-                  ))}
+            {comparePrimary && compareTargetId !== selectedTargetId && (
+              <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 space-y-3">
+                <h4 className="text-xs font-mono uppercase text-indigo-400">
+                  Expected Value Comparison: {primaryPath.targetNode.name} vs.{' '}
+                  {comparePrimary.targetNode.name}
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+                    <div className="font-bold text-white">
+                      {primaryPath.targetNode.name} ({primaryPath.targetNode.company})
+                    </div>
+                    <div className="text-emerald-400 font-mono mt-1">
+                      EV: {primaryPath.evScore} • P(Reach): {primaryPath.conversionProb}% •
+                      Authority: {primaryPath.authorityMultiplier}x
+                    </div>
+                  </div>
+                  <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+                    <div className="font-bold text-white">
+                      {comparePrimary.targetNode.name} (
+                      {comparePrimary.targetNode.company})
+                    </div>
+                    <div className="text-cyan-400 font-mono mt-1">
+                      EV: {comparePrimary.evScore} • P(Reach):{' '}
+                      {comparePrimary.conversionProb}% • Authority:{' '}
+                      {comparePrimary.authorityMultiplier}x
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Right Column: Tailored Outreach Generator (7 cols) */}
-          <div className="lg:col-span-7 bg-slate-900/80 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between backdrop-blur-md">
+          {/* Right 5 Cols: Goal-Mode Adaptive Outreach Synthesizer */}
+          <div className="lg:col-span-5 bg-slate-900/80 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between space-y-4">
             <div className="space-y-4">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-purple-400" />
-                  <h3 className="font-semibold text-white text-sm">Automated Outreach &amp; Forwardable Blurb</h3>
-                </div>
-
-                {/* Sub tabs */}
-                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
-                  <button
-                    onClick={() => setActiveTab('request')}
-                    className={`px-3 py-1 rounded-lg font-medium transition-all ${
-                      activeTab === 'request'
-                        ? 'bg-indigo-600 text-white'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    1. Bridge Intro Request
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('blurb')}
-                    className={`px-3 py-1 rounded-lg font-medium transition-all ${
-                      activeTab === 'blurb'
-                        ? 'bg-emerald-600 text-white'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    2. Forwardable Blurb
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('email')}
-                    className={`px-3 py-1 rounded-lg font-medium transition-all ${
-                      activeTab === 'email'
-                        ? 'bg-purple-600 text-white'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    3. Subject Line
-                  </button>
-                </div>
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-cyan-400" />
+                  <span>Goal-Mode Adaptive Outreach Synthesizer</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Automatically frames your intro around{' '}
+                  <strong className="text-cyan-300">
+                    {GOAL_MODES.find((m) => m.id === profile.activeGoalMode)?.shortLabel}
+                  </strong>
+                </p>
               </div>
 
-              {isLoadingOutreach ? (
-                <div className="h-72 flex items-center justify-center text-slate-400 text-xs">
-                  Generating tailored outreach vectors...
-                </div>
-              ) : outreachData ? (
-                <div className="space-y-3">
-                  {/* Active Text Box */}
-                  <div className="relative">
-                    <textarea
-                      rows={12}
-                      readOnly
-                      value={
-                        activeTab === 'request'
-                          ? outreachData.bridge_intro_request
-                          : activeTab === 'blurb'
-                          ? outreachData.forwardable_blurb
-                          : outreachData.email_subject
-                      }
-                      className="w-full p-4 rounded-xl bg-slate-950 border border-slate-700/80 text-xs text-slate-200 font-sans leading-relaxed focus:outline-none select-all"
-                    />
+              <div className="grid grid-cols-3 gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+                {[
+                  { id: 'forwardable' as const, label: 'Forwardable Blurb' },
+                  {
+                    id: 'ask_bridge' as const,
+                    label: `Ask ${primaryPath.bridgeNode?.name.split(' ')[0] || 'Bridge'}`,
+                  },
+                  { id: 'direct_dm' as const, label: 'Direct Warm DM' },
+                ].map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setTemplateType(t.id)}
+                    className={`py-2 px-2 rounded-lg font-medium transition ${
+                      templateType === t.id
+                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
 
-                    {/* Copy Button Overlay */}
-                    <button
-                      onClick={() => handleCopy(
-                        activeTab === 'request'
-                          ? outreachData.bridge_intro_request
-                          : activeTab === 'blurb'
-                          ? outreachData.forwardable_blurb
-                          : outreachData.email_subject,
-                        activeTab
-                      )}
-                      className="absolute top-3 right-3 px-3 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium flex items-center gap-1.5 shadow-md transition-all"
-                    >
-                      {copiedKey === activeTab ? (
-                        <>
-                          <Check className="h-3.5 w-3.5 text-emerald-400" />
-                          <span className="text-emerald-400 font-semibold">Copied!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="h-3.5 w-3.5" />
-                          <span>Copy Text</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-
-                  {/* Context Advice Banner */}
-                  <div className="text-[11px] text-slate-400 bg-slate-950/50 p-3 rounded-xl border border-slate-800 leading-normal">
-                    {activeTab === 'request' && (
-                      <p>
-                        💡 <strong className="text-slate-300">How to use:</strong> Send this message directly to <span className="text-indigo-400">{matchedPath.bridge_name}</span>. It politely requests the intro and includes the ready-made blurb below so they do not have to write anything themselves.
-                      </p>
-                    )}
-                    {activeTab === 'blurb' && (
-                      <p>
-                        💡 <strong className="text-slate-300">Why this converts:</strong> This blurb is crafted from the perspective of <span className="text-indigo-400">{matchedPath.bridge_name}</span> forwarding it directly to <span className="text-emerald-400">{matchedPath.target_name}</span> at {matchedPath.target_company}.
-                      </p>
-                    )}
-                    {activeTab === 'email' && (
-                      <p>
-                        💡 <strong className="text-slate-300">Subject line:</strong> High-conversion mutual connection format recommended for email or LinkedIn InMail introduction headers.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ) : null}
+              <textarea
+                rows={15}
+                value={customMessage}
+                onChange={(e) => setCustomMessage(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs font-mono text-slate-200 leading-relaxed focus:outline-none focus:border-cyan-500"
+              />
             </div>
 
-            <div className="pt-4 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
-              <span>Bridge Contact: <strong className="text-slate-200">{matchedPath.bridge_name}</strong></span>
-              <span>Target: <strong className="text-emerald-400">{matchedPath.target_name}</strong> ({matchedPath.target_company})</span>
-            </div>
+            <button
+              onClick={handleCopy}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-slate-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition shadow-lg shadow-cyan-500/20"
+            >
+              {copied ? (
+                <>
+                  <Check className="w-4 h-4 stroke-[2.5]" />
+                  <span>Copied Outreach to Clipboard!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4" />
+                  <span>Copy Goal-Tailored Outreach</span>
+                </>
+              )}
+            </button>
           </div>
-        </div>
-      ) : (
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-12 text-center text-slate-400">
-          No target selected. Choose a 2nd-degree executive node above to compute the shortest warm path.
         </div>
       )}
     </div>
